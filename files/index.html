@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ExamForge — AI-Powered Mock Test Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- PDF.js for client-side text extraction -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --ink: #0C0F1A;
+    --ink-soft: #1E2235;
+    --ink-muted: #2D3250;
+    --surface: #F7F5F0;
+    --surface-2: #EDE9E1;
+    --surface-3: #E0DBCF;
+    --amber: #D97706;
+    --amber-light: #FEF3C7;
+    --amber-dark: #92400E;
+    --emerald: #065F46;
+    --emerald-light: #D1FAE5;
+    --rose: #9F1239;
+    --rose-light: #FFE4E6;
+    --sky: #1E40AF;
+    --sky-light: #DBEAFE;
+    --text-primary: #0C0F1A;
+    --text-secondary: #4B5563;
+    --text-muted: #9CA3AF;
+    --border: #D4CFC4;
+    --border-strong: #B8B0A0;
+    --radius: 6px;
+    --radius-lg: 12px;
+    --shadow: 0 2px 12px rgba(12,15,26,0.08), 0 1px 3px rgba(12,15,26,0.06);
+    --shadow-lg: 0 8px 32px rgba(12,15,26,0.12), 0 2px 8px rgba(12,15,26,0.08);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Crimson Pro', Georgia, serif;
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 17px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ===== TYPOGRAPHY ===== */
+  h1, h2, h3 { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; }
+  h1 { font-size: 2.8rem; line-height: 1.15; letter-spacing: -0.02em; }
+  h2 { font-size: 2rem; line-height: 1.2; }
+  h3 { font-size: 1.4rem; }
+  code, .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.85em; }
+
+  /* ===== SCREENS ===== */
+  .screen { display: none; min-height: 100vh; animation: fadeIn 0.4s ease; }
+  .screen.active { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ===== NAV STRIP ===== */
+  .nav-strip {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: var(--ink);
+    padding: 0.65rem 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .nav-logo { font-family: 'Playfair Display', serif; color: #fff; font-size: 1.2rem; letter-spacing: 0.05em; }
+  .nav-logo span { color: var(--amber); }
+  .nav-timer {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem; color: #fff;
+    background: rgba(255,255,255,0.1);
+    padding: 0.3rem 0.9rem;
+    border-radius: var(--radius);
+    letter-spacing: 0.08em;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  .nav-timer.warning { color: #FCA5A5; background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.4); }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.75rem 1.75rem;
+    border-radius: var(--radius);
+    font-family: 'Crimson Pro', serif; font-size: 1.05rem; font-weight: 600;
+    cursor: pointer; border: none; transition: all 0.2s ease;
+    text-decoration: none; letter-spacing: 0.01em;
+  }
+  .btn-primary { background: var(--ink); color: #fff; }
+  .btn-primary:hover { background: var(--ink-soft); transform: translateY(-1px); box-shadow: var(--shadow); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-amber { background: var(--amber); color: #fff; }
+  .btn-amber:hover { background: var(--amber-dark); transform: translateY(-1px); box-shadow: var(--shadow); }
+  .btn-ghost {
+    background: transparent; color: var(--text-primary);
+    border: 1.5px solid var(--border-strong);
+  }
+  .btn-ghost:hover { background: var(--surface-2); }
+  .btn-sm { padding: 0.45rem 1rem; font-size: 0.9rem; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+  /* ===== LANGUAGE TOGGLE ===== */
+  .lang-toggle {
+    display: flex;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 2px;
+    position: relative; z-index: 1;
+    margin: 0 auto 2rem;
+    width: fit-content;
+  }
+  .lang-btn {
+    padding: 0.35rem 1.2rem;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.55);
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.02em;
+  }
+  .lang-btn.active {
+    background: var(--amber);
+    color: #fff;
+  }
+  .lang-btn:hover:not(.active) { color: rgba(255,255,255,0.85); }
+
+  /* Test screen language toggle (dark bg) */
+  .lang-toggle-instr {
+    display: flex;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 2px;
+    width: fit-content;
+  }
+  .lang-btn-instr {
+    padding: 0.3rem 1rem;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .lang-btn-instr.active {
+    background: var(--ink);
+    color: #fff;
+  }
+
+  /* Translating overlay pill */
+  .translating-pill {
+    display: none;
+    align-items: center; gap: 0.5rem;
+    background: var(--amber-light);
+    border: 1px solid #FCD34D;
+    color: var(--amber-dark);
+    padding: 0.35rem 1rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    position: relative; z-index: 1;
+    margin: 0 auto 1.5rem;
+    width: fit-content;
+  }
+  .translating-pill.visible { display: flex; }
+  .dot-spin {
+    width: 12px; height: 12px;
+    border: 2px solid var(--amber);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  /* ===== UPLOAD SCREEN ===== */
+  #screen-upload {
+    flex-direction: column;
+    justify-content: center; align-items: center;
+    padding: 3rem 2rem;
+    background: var(--ink);
+    position: relative; overflow: hidden;
+  }
+  #screen-upload::before {
+    content: '';
+    position: absolute; top: -200px; right: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(217,119,6,0.15) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  #screen-upload::after {
+    content: '';
+    position: absolute; bottom: -150px; left: -150px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(30,64,175,0.12) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .upload-hero { text-align: center; max-width: 640px; position: relative; z-index: 1; }
+  .upload-hero h1 { color: #fff; font-size: 3.2rem; margin-bottom: 1rem; }
+  .upload-hero h1 span { color: var(--amber); }
+  .upload-hero p { color: rgba(255,255,255,0.65); font-size: 1.15rem; margin-bottom: 2.5rem; line-height: 1.7; }
+
+  /* Backend URL input */
+  .backend-config {
+    position: relative; z-index: 1;
+    margin-bottom: 1.5rem;
+    width: 100%; max-width: 500px;
+  }
+  .backend-config label {
+    display: block;
+    color: rgba(255,255,255,0.45);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.4rem;
+    text-align: left;
+  }
+  .backend-config input {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius);
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .backend-config input:focus { border-color: var(--amber); }
+  .backend-config input::placeholder { color: rgba(255,255,255,0.25); }
+
+  .drop-zone {
+    width: 100%; max-width: 500px;
+    border: 2px dashed rgba(255,255,255,0.2);
+    border-radius: var(--radius-lg);
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: rgba(255,255,255,0.04);
+    position: relative; z-index: 1;
+    margin: 0 auto 1.5rem;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--amber);
+    background: rgba(217,119,6,0.06);
+  }
+  .drop-zone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .drop-icon { font-size: 3rem; margin-bottom: 1rem; display: block; }
+  .drop-zone p { color: rgba(255,255,255,0.6); margin-bottom: 0.5rem; }
+  .drop-zone .file-hint { font-size: 0.85rem; color: rgba(255,255,255,0.35); }
+  .drop-zone .file-selected { color: var(--amber); font-weight: 600; margin-top: 0.75rem; }
+
+  .feature-pills {
+    display: flex; flex-wrap: wrap; gap: 0.5rem;
+    justify-content: center; margin-bottom: 2rem;
+    position: relative; z-index: 1;
+  }
+  .pill {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.7);
+    padding: 0.3rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.82rem; letter-spacing: 0.02em;
+  }
+
+  /* ===== PARSING SCREEN ===== */
+  #screen-parsing {
+    flex-direction: column; justify-content: center; align-items: center;
+    background: var(--ink); color: #fff;
+    text-align: center; padding: 2rem;
+  }
+  .parse-status { max-width: 500px; }
+  .parse-status h2 { color: #fff; margin-bottom: 1rem; }
+  .parse-status p { color: rgba(255,255,255,0.6); margin-bottom: 2rem; }
+  .progress-track {
+    width: 100%; height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 999px; overflow: hidden; margin-bottom: 1rem;
+  }
+  .progress-bar {
+    height: 100%; background: var(--amber);
+    border-radius: 999px;
+    transition: width 0.4s ease;
+    animation: progressPulse 1.5s ease-in-out infinite;
+  }
+  @keyframes progressPulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+  .parse-log {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    text-align: left; font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem; color: rgba(255,255,255,0.5);
+    max-height: 160px; overflow-y: auto;
+    margin-top: 1rem;
+  }
+  .parse-log .log-line { margin-bottom: 0.25rem; }
+  .parse-log .log-line.success { color: #6EE7B7; }
+  .parse-log .log-line.error { color: #FCA5A5; }
+
+  /* ===== INSTRUCTIONS SCREEN ===== */
+  #screen-instructions {
+    flex-direction: column; justify-content: center; align-items: center;
+    padding: 5rem 2rem 3rem;
+  }
+  .instructions-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    max-width: 700px; width: 100%;
+    overflow: hidden;
+  }
+  .instr-header {
+    background: var(--ink);
+    padding: 2rem 2.5rem;
+    color: #fff;
+  }
+  .instr-header h2 { color: #fff; margin-bottom: 0.35rem; }
+  .instr-header p { color: rgba(255,255,255,0.6); font-size: 0.95rem; }
+  .instr-body { padding: 2rem 2.5rem; }
+  .rule-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1rem; margin-bottom: 1.75rem;
+  }
+  .rule-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
+  }
+  .rule-card .rule-label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.25rem; }
+  .rule-card .rule-val { font-size: 1.5rem; font-family: 'Playfair Display', serif; font-weight: 700; }
+  .rule-card.positive .rule-val { color: var(--emerald); }
+  .rule-card.negative .rule-val { color: var(--rose); }
+  .rule-card.neutral .rule-val { color: var(--sky); }
+  .marking-legend { display: flex; gap: 1.5rem; margin-bottom: 1.75rem; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .dot-correct { background: #10B981; }
+  .dot-incorrect { background: #EF4444; }
+  .dot-skip { background: #9CA3AF; }
+  .instr-footer {
+    padding: 1.5rem 2.5rem;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;
+  }
+  .exam-meta { font-size: 0.88rem; color: var(--text-secondary); }
+
+  /* ===== TEST SCREEN ===== */
+  #screen-test { flex-direction: column; padding-top: 56px; }
+  .test-layout { display: flex; flex: 1; min-height: calc(100vh - 56px); }
+  .question-panel {
+    flex: 1; padding: 2.5rem 3rem;
+    max-width: 820px;
+    overflow-y: auto;
+  }
+  .q-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.75rem; }
+  .q-counter { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+  .q-section-badge { font-size: 0.78rem; padding: 0.2rem 0.7rem; background: var(--amber-light); color: var(--amber-dark); border-radius: 999px; font-weight: 600; }
+  .question-text {
+    font-size: 1.2rem; line-height: 1.65;
+    color: var(--text-primary);
+    margin-bottom: 2rem;
+    font-weight: 400;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .options-list { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 2.5rem; }
+  .option-item {
+    display: flex; align-items: flex-start; gap: 1rem;
+    padding: 1rem 1.25rem;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.18s ease;
+    background: #fff;
+    user-select: none;
+  }
+  .option-item:hover { border-color: var(--amber); background: var(--amber-light); }
+  .option-item.selected { border-color: var(--ink); background: var(--surface-2); }
+  .option-item.selected .option-key { background: var(--ink); color: #fff; }
+  .option-key {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 500;
+    flex-shrink: 0; transition: all 0.18s ease;
+    color: var(--text-secondary); margin-top: 1px;
+  }
+  .option-text { font-size: 1rem; line-height: 1.5; padding-top: 2px; }
+  .nav-controls {
+    display: flex; gap: 1rem; align-items: center;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .btn-clear { font-size: 0.85rem; color: var(--text-muted); background: none; border: none; cursor: pointer; padding: 0.5rem; }
+  .btn-clear:hover { color: var(--rose); }
+
+  /* ===== PALETTE SIDEBAR ===== */
+  .palette-sidebar {
+    width: 280px; flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    padding: 2rem 1.5rem;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 1.5rem;
+  }
+  .palette-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.75rem; font-family: 'JetBrains Mono', monospace; }
+  .palette-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem; }
+  .stat-chip { text-align: center; padding: 0.5rem 0.25rem; border-radius: var(--radius); font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; }
+  .stat-chip .num { font-size: 1.2rem; font-weight: 500; display: block; }
+  .chip-attempted { background: #D1FAE5; color: #065F46; }
+  .chip-unattempted { background: #F3F4F6; color: #374151; }
+  .chip-remaining { background: var(--amber-light); color: var(--amber-dark); }
+  .palette-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .palette-btn {
+    width: 100%; aspect-ratio: 1;
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    background: #fff;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+    cursor: pointer; transition: all 0.15s ease;
+    color: var(--text-secondary);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .palette-btn:hover { border-color: var(--amber); }
+  .palette-btn.current { background: var(--ink); color: #fff; border-color: var(--ink); box-shadow: 0 2px 8px rgba(12,15,26,0.2); }
+  .palette-btn.answered { background: var(--emerald-light); color: var(--emerald); border-color: #A7F3D0; }
+  .submit-area { margin-top: auto; }
+  .submit-confirm-text { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem; line-height: 1.5; }
+
+  /* Test screen lang toggle in sidebar */
+  .sidebar-lang { margin-bottom: 0.5rem; }
+  .sidebar-lang .palette-title { margin-bottom: 0.5rem; }
+
+  /* ===== RESULTS SCREEN ===== */
+  #screen-results { flex-direction: column; padding: 5rem 2rem 4rem; min-height: 100vh; align-items: center; }
+  .results-container { max-width: 900px; width: 100%; }
+  .score-hero {
+    background: var(--ink); border-radius: var(--radius-lg);
+    padding: 3rem; color: #fff; text-align: center;
+    margin-bottom: 2rem; position: relative; overflow: hidden;
+  }
+  .score-hero::before {
+    content: ''; position: absolute; top: -100px; right: -100px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(217,119,6,0.2) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .score-display { font-family: 'Playfair Display', serif; font-size: 5rem; font-weight: 700; color: var(--amber); line-height: 1; margin-bottom: 0.25rem; position: relative; z-index: 1; }
+  .score-max { font-size: 1.2rem; color: rgba(255,255,255,0.5); position: relative; z-index: 1; }
+  .score-verdict { display: inline-block; margin-top: 1rem; padding: 0.35rem 1.2rem; border-radius: 999px; font-size: 1rem; font-weight: 600; letter-spacing: 0.05em; position: relative; z-index: 1; }
+  .verdict-pass { background: var(--emerald-light); color: var(--emerald); }
+  .verdict-fail { background: var(--rose-light); color: var(--rose); }
+  .result-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .result-stat-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; text-align: center; }
+  .rs-label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.5rem; }
+  .rs-value { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700; }
+  .rs-correct { color: var(--emerald); }
+  .rs-incorrect { color: var(--rose); }
+  .rs-skipped { color: var(--text-muted); }
+  .rs-percent { color: var(--sky); }
+  .analysis-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem; }
+  .analysis-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .filter-btn { padding: 0.3rem 0.85rem; border-radius: 999px; border: 1.5px solid var(--border); background: #fff; cursor: pointer; font-family: 'Crimson Pro', serif; font-size: 0.9rem; transition: all 0.15s; }
+  .filter-btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .analysis-list { display: flex; flex-direction: column; gap: 0.75rem; }
+  .analysis-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .analysis-card-header { display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1.25rem; cursor: pointer; transition: background 0.15s; }
+  .analysis-card-header:hover { background: var(--surface); }
+  .ac-q-num { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--text-muted); flex-shrink: 0; }
+  .ac-question { flex: 1; font-size: 0.92rem; line-height: 1.4; color: var(--text-primary); }
+  .ac-status { font-size: 0.85rem; font-weight: 700; flex-shrink: 0; padding: 0.15rem 0.55rem; border-radius: 999px; }
+  .ac-correct { background: var(--emerald-light); color: var(--emerald); }
+  .ac-incorrect { background: var(--rose-light); color: var(--rose); }
+  .ac-skipped { background: #F3F4F6; color: var(--text-muted); }
+  .analysis-card-body { display: none; padding: 1.25rem; border-top: 1px solid var(--border); }
+  .analysis-card-body.open { display: block; }
+  .answer-row { display: flex; gap: 2rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .answer-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.25rem; }
+  .answer-val { font-size: 0.95rem; font-weight: 600; }
+  .val-correct { color: var(--emerald); }
+  .val-incorrect { color: var(--rose); }
+  .val-skipped { color: var(--text-muted); }
+  .explanation-box { background: var(--sky-light); border: 1px solid #BFDBFE; border-radius: var(--radius); padding: 0.9rem 1.1rem; font-size: 0.92rem; line-height: 1.65; color: #1E3A5F; }
+  .explanation-box .expl-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--sky); font-weight: 700; margin-bottom: 0.4rem; }
+
+  /* ===== ERROR & EMPTY STATES ===== */
+  .error-banner { background: var(--rose-light); border: 1px solid #FECDD3; border-radius: var(--radius); padding: 1rem 1.25rem; color: var(--rose); font-size: 0.92rem; margin-bottom: 1rem; display: none; position: relative; z-index: 1; }
+  .spinner { width: 40px; height: 40px; margin: 0 auto 1.5rem; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--amber); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== MODAL ===== */
+  .modal-overlay { position: fixed; inset: 0; z-index: 999; background: rgba(12,15,26,0.6); display: none; align-items: center; justify-content: center; padding: 2rem; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: #fff; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); max-width: 440px; width: 100%; padding: 2rem; }
+  .modal-box h3 { margin-bottom: 0.75rem; }
+  .modal-box p { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem; }
+  .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    h1 { font-size: 2.2rem; }
+    .test-layout { flex-direction: column; }
+    .palette-sidebar { width: 100%; border-left: none; border-top: 1px solid var(--border); padding: 1.25rem; }
+    .question-panel { padding: 1.5rem; }
+    .result-stats { grid-template-columns: repeat(2, 1fr); }
+    .rule-grid { grid-template-columns: 1fr 1fr; }
+    .answer-row { gap: 1rem; }
+    .instr-footer { flex-direction: column; align-items: flex-start; }
+  }
+  @media (max-width: 480px) {
+    .result-stats { grid-template-columns: 1fr 1fr; }
+    .rule-grid { grid-template-columns: 1fr; }
+    h2 { font-size: 1.5rem; }
+    .score-display { font-size: 3.5rem; }
+    .upload-hero h1 { font-size: 2.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════ UPLOAD SCREEN -->
+<div id="screen-upload" class="screen active">
+  <div class="upload-hero">
+    <div style="display:inline-flex;align-items:center;gap:0.6rem;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:999px;padding:0.3rem 1rem;font-size:0.8rem;letter-spacing:0.08em;color:rgba(255,255,255,0.6);margin-bottom:2rem;position:relative;z-index:1;">
+      ✦ AI-POWERED MOCK TEST ENGINE
+    </div>
+    <h1>Exam<span>Forge</span></h1>
+    <p>Upload your MCQ question paper as a PDF. Our AI will extract all questions, build a full timed test, and give you a detailed performance analysis.</p>
+
+    <div class="feature-pills">
+      <span class="pill">+3 / –1 Marking</span>
+      <span class="pill">180-min Timer</span>
+      <span class="pill">Question Palette</span>
+      <span class="pill">Hindi / English</span>
+      <span class="pill">Mobile Ready</span>
+    </div>
+
+    <!-- Language Selection -->
+    <div class="lang-toggle">
+      <button class="lang-btn active" id="langBtnEn" onclick="setUploadLang('en')">English</button>
+      <button class="lang-btn" id="langBtnHi" onclick="setUploadLang('hi')">हिंदी</button>
+    </div>
+    <div class="translating-pill" id="translatingPill">
+      <div class="dot-spin"></div> Translating to Hindi… (~30s)
+    </div>
+
+    <!-- Backend URL Config -->
+    <div class="backend-config">
+      <label>Backend URL (your deployed server)</label>
+      <input type="text" id="backendUrl" placeholder="http://localhost:3001" value="http://localhost:3001" />
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="pdfInput" accept=".pdf" />
+      <span class="drop-icon">📄</span>
+      <p>Drop your PDF here or <strong style="color:var(--amber)">click to browse</strong></p>
+      <p class="file-hint">PDF files only · Max 20MB · 100 MCQs recommended</p>
+      <p id="selectedFileName" class="file-selected" style="display:none;"></p>
+    </div>
+
+    <div class="error-banner" id="uploadError"></div>
+
+    <button class="btn btn-amber" id="startParseBtn" disabled onclick="startParsing()" style="font-size:1.1rem;padding:0.9rem 2.5rem;position:relative;z-index:1;">
+      Parse &amp; Build Test →
+    </button>
+
+    <p style="color:rgba(255,255,255,0.3);font-size:0.8rem;margin-top:1.5rem;position:relative;z-index:1;">
+      Powered by Groq / OpenRouter · Your PDF is processed securely and never stored.
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ PARSING SCREEN -->
+<div id="screen-parsing" class="screen">
+  <div class="parse-status">
+    <div class="spinner"></div>
+    <h2>Processing your question paper…</h2>
+    <p id="parseStatusText">Extracting text from PDF…</p>
+    <div class="progress-track">
+      <div class="progress-bar" id="progressBar" style="width:0%"></div>
+    </div>
+    <div class="parse-log" id="parseLog"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ INSTRUCTIONS SCREEN -->
+<div id="screen-instructions" class="screen" style="flex-direction:column;align-items:center;padding-top:4rem;">
+  <div class="instructions-card">
+    <div class="instr-header">
+      <h2 id="instrTitle">Mock Test Ready</h2>
+      <p id="instrSubtitle">Read the instructions carefully before beginning</p>
+    </div>
+    <div class="instr-body">
+      <!-- Language toggle on instruction screen -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;">
+        <div>
+          <p style="font-size:0.82rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem;">Test Language</p>
+          <div class="lang-toggle-instr">
+            <button class="lang-btn-instr active" id="instrLangEn" onclick="setInstrLang('en')">English</button>
+            <button class="lang-btn-instr" id="instrLangHi" onclick="setInstrLang('hi')">हिंदी</button>
+          </div>
+        </div>
+        <div id="instrTranslatingStatus" style="display:none;font-size:0.82rem;color:var(--amber);font-weight:600;">⏳ Translating…</div>
+      </div>
+
+      <div class="rule-grid">
+        <div class="rule-card positive"><div class="rule-label">Correct Answer</div><div class="rule-val">+3 marks</div></div>
+        <div class="rule-card negative"><div class="rule-label">Wrong Answer</div><div class="rule-val">–1 mark</div></div>
+        <div class="rule-card neutral"><div class="rule-label">Unattempted</div><div class="rule-val">0 marks</div></div>
+        <div class="rule-card neutral"><div class="rule-label">Total Questions</div><div class="rule-val" id="instrQCount">—</div></div>
+      </div>
+      <div class="marking-legend">
+        <div class="legend-item"><span class="legend-dot dot-correct"></span> Correct (+3)</div>
+        <div class="legend-item"><span class="legend-dot dot-incorrect"></span> Incorrect (−1)</div>
+        <div class="legend-item"><span class="legend-dot dot-skip"></span> Skipped (0)</div>
+      </div>
+      <ul style="color:var(--text-secondary);font-size:0.92rem;padding-left:1.25rem;line-height:2;margin-bottom:0;">
+        <li>Navigate between questions using the palette or Prev/Next buttons.</li>
+        <li>You can change your answer at any time before final submission.</li>
+        <li>The timer is displayed at the top. Submit before time runs out.</li>
+        <li>Unanswered questions will be treated as skipped (0 marks).</li>
+        <li>Your detailed analysis will be shown after submission.</li>
+        <li>You can switch between Hindi and English at any time during the test.</li>
+      </ul>
+    </div>
+    <div class="instr-footer">
+      <div class="exam-meta" id="instrMeta">Duration: 180 minutes · Max Marks: —</div>
+      <button class="btn btn-primary" onclick="startTest()">Begin Test →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ TEST SCREEN -->
+<div id="screen-test" class="screen">
+  <nav class="nav-strip">
+    <div class="nav-logo">Exam<span>Forge</span></div>
+    <div class="nav-timer" id="timerDisplay">03:00:00</div>
+    <div style="display:flex;gap:0.75rem;align-items:center;">
+      <span style="color:rgba(255,255,255,0.5);font-size:0.82rem;" id="navProgress">Q 1 / 1</span>
+      <button class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.15);padding:0.35rem 0.9rem;font-size:0.82rem;" onclick="confirmSubmit()">Submit Test</button>
+    </div>
+  </nav>
+
+  <div class="test-layout">
+    <!-- Question Panel -->
+    <div class="question-panel">
+      <div class="q-meta">
+        <span class="q-counter" id="qCounter">QUESTION 1 OF 100</span>
+        <span class="q-section-badge" id="qBadge">General</span>
+      </div>
+      <div class="question-text" id="questionText">Loading question…</div>
+      <div class="options-list" id="optionsList"></div>
+      <div class="nav-controls">
+        <button class="btn btn-ghost" id="prevBtn" onclick="navigateQ(-1)">← Previous</button>
+        <button class="btn btn-primary" id="nextBtn" onclick="navigateQ(1)">Next →</button>
+        <button class="btn-clear" onclick="clearAnswer()">Clear Selection</button>
+        <button class="btn btn-amber btn-sm" style="margin-left:auto;" onclick="confirmSubmit()">Submit</button>
+      </div>
+    </div>
+
+    <!-- Palette Sidebar -->
+    <div class="palette-sidebar">
+      <!-- Language toggle in sidebar -->
+      <div class="sidebar-lang">
+        <div class="palette-title">Language / भाषा</div>
+        <div class="lang-toggle-instr">
+          <button class="lang-btn-instr active" id="testLangEn" onclick="setTestLang('en')">EN</button>
+          <button class="lang-btn-instr" id="testLangHi" onclick="setTestLang('hi')">हि</button>
+        </div>
+        <div id="testTranslatingStatus" style="display:none;font-size:0.75rem;color:var(--amber);margin-top:0.4rem;">⏳ Translating…</div>
+      </div>
+
+      <div>
+        <div class="palette-title">Question Palette</div>
+        <div class="palette-stats">
+          <div class="stat-chip chip-attempted"><span class="num" id="statAnswered">0</span>Done</div>
+          <div class="stat-chip chip-remaining"><span class="num" id="statRemaining">0</span>Left</div>
+          <div class="stat-chip chip-unattempted"><span class="num" id="statTotal">0</span>Total</div>
+        </div>
+        <div class="palette-grid" id="paletteGrid"></div>
+      </div>
+      <div class="submit-area">
+        <p class="submit-confirm-text">Answered all questions? Review and submit your final responses.</p>
+        <button class="btn btn-amber" style="width:100%;" onclick="confirmSubmit()">Submit Test</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ RESULTS SCREEN -->
+<div id="screen-results" class="screen">
+  <div class="results-container">
+    <div class="score-hero">
+      <div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.45);margin-bottom:0.5rem;position:relative;z-index:1;">Final Score</div>
+      <div class="score-display" id="finalScore">—</div>
+      <div class="score-max" id="finalScoreMax">out of — marks</div>
+      <div class="score-verdict" id="verdict"></div>
+    </div>
+
+    <div class="result-stats">
+      <div class="result-stat-card"><div class="rs-label">Correct</div><div class="rs-value rs-correct" id="rsCorrect">—</div></div>
+      <div class="result-stat-card"><div class="rs-label">Incorrect</div><div class="rs-value rs-incorrect" id="rsIncorrect">—</div></div>
+      <div class="result-stat-card"><div class="rs-label">Skipped</div><div class="rs-value rs-skipped" id="rsSkipped">—</div></div>
+      <div class="result-stat-card"><div class="rs-label">Percentage</div><div class="rs-value rs-percent" id="rsPercent">—</div></div>
+    </div>
+
+    <div class="analysis-header">
+      <h2>Detailed Analysis</h2>
+      <div class="analysis-filters">
+        <button class="filter-btn active" onclick="filterAnalysis('all', this)">All</button>
+        <button class="filter-btn" onclick="filterAnalysis('correct', this)">Correct</button>
+        <button class="filter-btn" onclick="filterAnalysis('incorrect', this)">Wrong</button>
+        <button class="filter-btn" onclick="filterAnalysis('skipped', this)">Skipped</button>
+      </div>
+    </div>
+
+    <div class="analysis-list" id="analysisList"></div>
+
+    <div style="margin-top:2rem;display:flex;gap:1rem;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="restartTest()">Retake Test</button>
+      <button class="btn btn-ghost" onclick="showScreen('screen-upload');resetAll()">Upload New PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ SUBMIT MODAL -->
+<div class="modal-overlay" id="submitModal">
+  <div class="modal-box">
+    <h3>Submit Test?</h3>
+    <p id="submitModalText">You have answered — of — questions. Unanswered questions will receive 0 marks. This action cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Review</button>
+      <button class="btn btn-amber btn-sm" onclick="finalSubmit()">Yes, Submit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// PDF.js Worker Setup
+// ═══════════════════════════════════════════════════════════
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let questions = [];       // Full question objects with _en and _hi variants
+let userAnswers = {};
+let currentQ = 0;
+let timerInterval = null;
+let timeLeft = 180 * 60;
+let testStartTime = null;
+let pdfFile = null;
+let currentLang = 'en';   // 'en' | 'hi'
+let translationInProgress = false;
+let translationDone = false;
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+function getBackendUrl() {
+  return (document.getElementById('backendUrl')?.value || 'http://localhost:3001').replace(/\/$/, '');
+}
+
+function getQField(q, field) {
+  // field: 'question' | 'options' | 'explanation'
+  if (currentLang === 'hi') {
+    const hiKey = field + '_hi';
+    const enKey = field + '_en';
+    return q[hiKey] || q[enKey]; // fallback to English if Hindi not yet available
+  }
+  return q[field + '_en'];
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ═══════════════════════════════════════════════════════════
+// SCREEN MANAGEMENT
+// ═══════════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════
+// LANGUAGE MANAGEMENT
+// ═══════════════════════════════════════════════════════════
+function setUploadLang(lang) {
+  currentLang = lang;
+  document.getElementById('langBtnEn').classList.toggle('active', lang === 'en');
+  document.getElementById('langBtnHi').classList.toggle('active', lang === 'hi');
+}
+
+function setInstrLang(lang) {
+  currentLang = lang;
+  document.getElementById('instrLangEn').classList.toggle('active', lang === 'en');
+  document.getElementById('instrLangHi').classList.toggle('active', lang === 'hi');
+  if (lang === 'hi' && !translationDone && !translationInProgress) {
+    triggerTranslation('instrTranslatingStatus');
+  }
+}
+
+function setTestLang(lang) {
+  currentLang = lang;
+  document.getElementById('testLangEn').classList.toggle('active', lang === 'en');
+  document.getElementById('testLangHi').classList.toggle('active', lang === 'hi');
+  if (lang === 'hi' && !translationDone && !translationInProgress) {
+    triggerTranslation('testTranslatingStatus');
+  }
+  renderQuestion(); // refresh immediately; Hindi will snap in when ready
+}
+
+async function triggerTranslation(statusElId) {
+  if (translationInProgress || translationDone) return;
+  translationInProgress = true;
+
+  const statusEl = document.getElementById(statusElId);
+  const pill = document.getElementById('translatingPill');
+  if (statusEl) statusEl.style.display = 'block';
+  if (pill) pill.classList.add('visible');
+
+  try {
+    const res = await fetch(getBackendUrl() + '/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ questions, targetLang: 'hi' })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    questions = data.questions;
+    translationDone = true;
+    renderQuestion(); // refresh to show Hindi
+  } catch (err) {
+    console.error('Translation failed:', err);
+    currentLang = 'en'; // revert
+    if (statusElId === 'instrTranslatingStatus') setInstrLang('en');
+    else setTestLang('en');
+    alert('Translation failed. Please check backend and try again.\n' + err.message);
+  } finally {
+    translationInProgress = false;
+    if (statusEl) statusEl.style.display = 'none';
+    if (pill) pill.classList.remove('visible');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// FILE UPLOAD
+// ═══════════════════════════════════════════════════════════
+const dropZone = document.getElementById('dropZone');
+const pdfInput = document.getElementById('pdfInput');
+
+pdfInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  handleFile(e.dataTransfer.files[0]);
+});
+
+function handleFile(file) {
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.pdf')) { showUploadError('Please upload a PDF file only.'); return; }
+  if (file.size > 20 * 1024 * 1024) { showUploadError('File too large. Max 20MB.'); return; }
+  pdfFile = file;
+  hideUploadError();
+  const nameEl = document.getElementById('selectedFileName');
+  nameEl.textContent = '✓ ' + file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)';
+  nameEl.style.display = 'block';
+  document.getElementById('startParseBtn').disabled = false;
+}
+
+function showUploadError(msg) { const el = document.getElementById('uploadError'); el.textContent = msg; el.style.display = 'block'; }
+function hideUploadError() { document.getElementById('uploadError').style.display = 'none'; }
+
+// ═══════════════════════════════════════════════════════════
+// PDF TEXT EXTRACTION (PDF.js — client-side)
+// ═══════════════════════════════════════════════════════════
+async function extractTextFromPDF(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  logMsg('PDF loaded: ' + pdf.numPages + ' pages detected.');
+
+  let fullText = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items.map(item => item.str).join(' ');
+    fullText += pageText + '\n';
+    setProgress(10 + Math.round((i / pdf.numPages) * 20), `Extracting text — page ${i}/${pdf.numPages}…`);
+  }
+  return fullText;
+}
+
+// ═══════════════════════════════════════════════════════════
+// PARSING FLOW
+// ═══════════════════════════════════════════════════════════
+function startParsing() {
+  if (!pdfFile) return;
+  showScreen('screen-parsing');
+  parsePDF(pdfFile);
+}
+
+function logMsg(msg, type = '') {
+  const log = document.getElementById('parseLog');
+  const line = document.createElement('div');
+  line.className = 'log-line ' + type;
+  line.textContent = '› ' + msg;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function setProgress(pct, msg) {
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('parseStatusText').textContent = msg;
+}
+
+async function parsePDF(file) {
+  setProgress(5, 'Reading PDF file…');
+  logMsg('File: ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)');
+
+  try {
+    // Step 1: Extract text client-side with PDF.js
+    logMsg('Extracting text via PDF.js…');
+    const rawText = await extractTextFromPDF(file);
+    logMsg('Text extracted: ' + rawText.length + ' characters.', 'success');
+
+    if (rawText.trim().length < 50) {
+      throw new Error('Could not extract readable text from this PDF. It may be a scanned/image PDF.');
+    }
+
+    // Step 2: Send text to backend for LLM structuring
+    setProgress(35, 'Sending text to AI engine…');
+    logMsg('Calling backend: ' + getBackendUrl() + '/parse-pdf');
+
+    const res = await fetch(getBackendUrl() + '/parse-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: rawText })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(errData.error || 'Backend error ' + res.status);
+    }
+
+    setProgress(75, 'Validating extracted questions…');
+    const data = await res.json();
+    logMsg('Backend response received.', 'success');
+    logMsg('Provider: ' + (data.provider || 'unknown'));
+
+    if (!data.questions || data.questions.length === 0) {
+      throw new Error('No questions found. Ensure the PDF contains MCQ content.');
+    }
+
+    questions = data.questions;
+    translationDone = false;
+    translationInProgress = false;
+
+    // If Hindi was pre-selected, kick off translation immediately
+    if (currentLang === 'hi') {
+      triggerTranslation('translatingPill');
+    }
+
+    setProgress(100, 'All questions extracted successfully!');
+    logMsg(questions.length + ' questions extracted and validated.', 'success');
+
+    setTimeout(showInstructions, 1200);
+
+  } catch (err) {
+    logMsg('Error: ' + err.message, 'error');
+    setProgress(0, 'Error occurred.');
+    setTimeout(() => {
+      showUploadError('Parsing failed: ' + err.message);
+      showScreen('screen-upload');
+    }, 2000);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// INSTRUCTIONS
+// ═══════════════════════════════════════════════════════════
+function showInstructions() {
+  const n = questions.length;
+  document.getElementById('instrTitle').textContent = 'Mock Test Ready — ' + n + ' Questions';
+  document.getElementById('instrSubtitle').textContent = 'Parsed from: ' + (pdfFile ? pdfFile.name : 'uploaded PDF');
+  document.getElementById('instrQCount').textContent = n;
+  document.getElementById('instrMeta').textContent = 'Duration: 180 minutes · Max Marks: ' + (n * 3);
+
+  // Sync lang toggles
+  document.getElementById('instrLangEn').classList.toggle('active', currentLang === 'en');
+  document.getElementById('instrLangHi').classList.toggle('active', currentLang === 'hi');
+
+  showScreen('screen-instructions');
+}
+
+// ═══════════════════════════════════════════════════════════
+// TEST LOGIC
+// ═══════════════════════════════════════════════════════════
+function startTest() {
+  userAnswers = {};
+  currentQ = 0;
+  timeLeft = 180 * 60;
+  testStartTime = Date.now();
+  // Sync test lang toggles
+  document.getElementById('testLangEn').classList.toggle('active', currentLang === 'en');
+  document.getElementById('testLangHi').classList.toggle('active', currentLang === 'hi');
+  buildPalette();
+  renderQuestion();
+  startTimer();
+  showScreen('screen-test');
+}
+
+function renderQuestion() {
+  if (!questions.length) return;
+  const q = questions[currentQ];
+  const n = questions.length;
+
+  document.getElementById('qCounter').textContent = 'QUESTION ' + (currentQ + 1) + ' OF ' + n;
+  document.getElementById('navProgress').textContent = 'Q ' + (currentQ + 1) + ' / ' + n;
+  document.getElementById('questionText').textContent = getQField(q, 'question');
+  document.getElementById('prevBtn').disabled = currentQ === 0;
+  document.getElementById('nextBtn').textContent = currentQ === n - 1 ? 'Submit ✓' : 'Next →';
+  document.getElementById('nextBtn').onclick = currentQ === n - 1 ? confirmSubmit : () => navigateQ(1);
+
+  const opts = getQField(q, 'options') || q.options_en;
+  const ul = document.getElementById('optionsList');
+  ul.innerHTML = '';
+  ['A','B','C','D'].forEach(key => {
+    const li = document.createElement('div');
+    li.className = 'option-item' + (userAnswers[currentQ] === key ? ' selected' : '');
+    li.innerHTML = `<span class="option-key">${key}</span><span class="option-text">${escapeHtml(opts[key])}</span>`;
+    li.onclick = () => selectAnswer(key);
+    ul.appendChild(li);
+  });
+
+  updatePaletteHighlight();
+  updateStats();
+}
+
+function selectAnswer(key) { userAnswers[currentQ] = key; renderQuestion(); }
+function clearAnswer() { delete userAnswers[currentQ]; renderQuestion(); }
+function navigateQ(dir) { currentQ = Math.max(0, Math.min(questions.length - 1, currentQ + dir)); renderQuestion(); }
+
+function buildPalette() {
+  const grid = document.getElementById('paletteGrid');
+  grid.innerHTML = '';
+  questions.forEach((_, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'palette-btn';
+    btn.id = 'pb-' + i;
+    btn.textContent = i + 1;
+    btn.onclick = () => { currentQ = i; renderQuestion(); };
+    grid.appendChild(btn);
+  });
+  document.getElementById('statTotal').textContent = questions.length;
+}
+
+function updatePaletteHighlight() {
+  questions.forEach((_, i) => {
+    const btn = document.getElementById('pb-' + i);
+    if (!btn) return;
+    btn.className = 'palette-btn' + (i === currentQ ? ' current' : '') + (userAnswers[i] ? ' answered' : '');
+  });
+}
+
+function updateStats() {
+  const answered = Object.keys(userAnswers).length;
+  document.getElementById('statAnswered').textContent = answered;
+  document.getElementById('statRemaining').textContent = questions.length - answered;
+}
+
+// ═══════════════════════════════════════════════════════════
+// TIMER
+// ═══════════════════════════════════════════════════════════
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    const h = Math.floor(timeLeft / 3600);
+    const m = Math.floor((timeLeft % 3600) / 60);
+    const s = timeLeft % 60;
+    const display = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    document.getElementById('timerDisplay').textContent = display;
+    if (timeLeft <= 600) document.getElementById('timerDisplay').classList.add('warning');
+    if (timeLeft <= 0) { clearInterval(timerInterval); finalSubmit(); }
+  }, 1000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SUBMIT
+// ═══════════════════════════════════════════════════════════
+function confirmSubmit() {
+  const ans = Object.keys(userAnswers).length;
+  document.getElementById('submitModalText').textContent =
+    'You have answered ' + ans + ' of ' + questions.length + ' questions. Unanswered questions receive 0 marks. This cannot be undone.';
+  document.getElementById('submitModal').classList.add('open');
+}
+function closeModal() { document.getElementById('submitModal').classList.remove('open'); }
+
+function finalSubmit() {
+  closeModal();
+  clearInterval(timerInterval);
+  const result = evaluateTest();
+  renderResults(result);
+  showScreen('screen-results');
+}
+
+// ═══════════════════════════════════════════════════════════
+// EVALUATION ENGINE  (+3 / -1)
+// ═══════════════════════════════════════════════════════════
+function evaluateTest() {
+  let correct = 0, incorrect = 0, unattempted = 0;
+  const analysis = questions.map((q, i) => {
+    const user = userAnswers[i] || null;
+    let is_correct = null;
+    if (!user) { unattempted++; }
+    else if (user === q.correct_answer) { correct++; is_correct = true; }
+    else { incorrect++; is_correct = false; }
+    return {
+      question: getQField(q, 'question'),
+      options: getQField(q, 'options') || q.options_en,
+      user_answer: user,
+      correct_answer: q.correct_answer,
+      is_correct,
+      explanation: getQField(q, 'explanation'),
+      index: i
+    };
+  });
+  const score = (correct * 3) - (incorrect * 1);
+  const maxScore = questions.length * 3;
+  const percentage = maxScore > 0 ? ((score / maxScore) * 100).toFixed(1) : '0.0';
+  return { summary: { score, maxScore, correct, incorrect, unattempted, percentage }, analysis };
+}
+
+// ═══════════════════════════════════════════════════════════
+// RESULTS RENDERER
+// ═══════════════════════════════════════════════════════════
+function renderResults(result) {
+  const { summary, analysis } = result;
+  document.getElementById('finalScore').textContent = summary.score;
+  document.getElementById('finalScoreMax').textContent = 'out of ' + summary.maxScore + ' marks';
+  document.getElementById('rsCorrect').textContent = summary.correct;
+  document.getElementById('rsIncorrect').textContent = summary.incorrect;
+  document.getElementById('rsSkipped').textContent = summary.unattempted;
+  document.getElementById('rsPercent').textContent = summary.percentage + '%';
+
+  const passed = parseFloat(summary.percentage) >= 33;
+  const verdictEl = document.getElementById('verdict');
+  verdictEl.textContent = passed ? '✓ PASS' : '✗ FAIL';
+  verdictEl.className = 'score-verdict ' + (passed ? 'verdict-pass' : 'verdict-fail');
+
+  window._analysisData = analysis;
+  renderAnalysis(analysis);
+}
+
+function renderAnalysis(data) {
+  const list = document.getElementById('analysisList');
+  list.innerHTML = '';
+  data.forEach((item, idx) => {
+    const card = document.createElement('div');
+    card.className = 'analysis-card';
+    card.dataset.status = item.is_correct === true ? 'correct' : item.is_correct === false ? 'incorrect' : 'skipped';
+
+    const statusIcon = item.is_correct === true ? '✓' : item.is_correct === false ? '✗' : '—';
+    const statusClass = item.is_correct === true ? 'ac-correct' : item.is_correct === false ? 'ac-incorrect' : 'ac-skipped';
+    const opts = item.options;
+    const userAnswerLabel = item.user_answer ? `${item.user_answer}: ${escapeHtml(opts[item.user_answer])}` : 'Not Attempted';
+    const correctAnswerLabel = `${item.correct_answer}: ${escapeHtml(opts[item.correct_answer])}`;
+    const userClass = item.is_correct === true ? 'val-correct' : item.is_correct === false ? 'val-incorrect' : 'val-skipped';
+
+    card.innerHTML = `
+      <div class="analysis-card-header" onclick="toggleAnalysisCard(this)">
+        <span class="ac-q-num">Q${item.index + 1}</span>
+        <span class="ac-question">${escapeHtml(item.question.length > 100 ? item.question.slice(0, 100) + '…' : item.question)}</span>
+        <span class="ac-status ${statusClass}">${statusIcon}</span>
+      </div>
+      <div class="analysis-card-body">
+        <p style="font-size:0.95rem;margin-bottom:1rem;color:var(--text-primary)">${escapeHtml(item.question)}</p>
+        <div class="answer-row">
+          <div><div class="answer-label">Your Answer</div><div class="answer-val ${userClass}">${escapeHtml(userAnswerLabel)}</div></div>
+          <div><div class="answer-label">Correct Answer</div><div class="answer-val val-correct">${escapeHtml(correctAnswerLabel)}</div></div>
+        </div>
+        <div class="explanation-box">
+          <div class="expl-label">Explanation</div>
+          ${escapeHtml(item.explanation || 'No explanation available.')}
+        </div>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function toggleAnalysisCard(header) { header.nextElementSibling.classList.toggle('open'); }
+
+function filterAnalysis(type, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.analysis-card').forEach(card => {
+    card.style.display = (type === 'all' || card.dataset.status === type) ? '' : 'none';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// RESTART / RESET
+// ═══════════════════════════════════════════════════════════
+function restartTest() {
+  if (confirm('Retake the same test? Your previous answers will be cleared.')) { startTest(); }
+}
+
+function resetAll() {
+  questions = [];
+  userAnswers = {};
+  currentQ = 0;
+  currentLang = 'en';
+  translationDone = false;
+  translationInProgress = false;
+  clearInterval(timerInterval);
+  pdfFile = null;
+  document.getElementById('selectedFileName').style.display = 'none';
+  document.getElementById('startParseBtn').disabled = true;
+  document.getElementById('pdfInput').value = '';
+  document.getElementById('parseLog').innerHTML = '';
+  document.getElementById('progressBar').style.width = '0%';
+  // Reset lang toggles
+  document.getElementById('langBtnEn').classList.add('active');
+  document.getElementById('langBtnHi').classList.remove('active');
+}
+</script>
+</body>
+</html>
